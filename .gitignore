@@ -1,0 +1,34 @@
+# Virtualenvs
+.venv/
+venv/
+env/
+
+# PyInstaller output — dist/ForensiQ.exe is ~666 MB, far over GitHub's limit
+build/
+dist/
+
+# Python
+__pycache__/
+*.py[cod]
+
+# Runtime config — holds VirusTotal / HaveIBeenPwned API keys
+forensiq_config.json
+
+# Generated reports and runtime state
+output/
+alerts.json
+forensics_output_*.json
+*.log
+
+# Editor
+.vscode/
+.idea/
+tempCodeRunnerFile.py
+
+# OS
+Thumbs.db
+.DS_Store
+
+# Project report and slide deck — kept local, not published
+ForensiQ_network/SpikeGuard PPT.pptx
+ForensiQ_network/Spikeguard Report.pdf
