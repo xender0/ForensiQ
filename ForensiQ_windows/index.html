@@ -1,0 +1,1598 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ForensiQ (Windows) - Report Viewer</title>
+    <!-- Bootswatch Darkly Theme -->
+    <link href="https://cdn.jsdelivr.net/npm/bootswatch@5.3.0/dist/darkly/bootstrap.min.css" rel="stylesheet">
+    <!-- Bootstrap Icons -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
+    <!-- Chart.js for statistics -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <style>
+        /* Adjust body padding for fixed navbar */
+        body { 
+            padding-top: 56px; 
+            background-color: #1a1a1a;
+        }
+        
+        #sidebar {
+            height: calc(100vh - 56px);
+            overflow-y: auto;
+            padding: 1rem 0;
+            background-color: #2c3e50;
+            border-right: 1px solid #34495e;
+        }
+        
+        #reportList { 
+            list-style: none; 
+            padding: 0; 
+        }
+        
+        #reportList li a {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.75rem 1rem;
+            text-decoration: none;
+            color: #ecf0f1;
+            border-radius: 0.25rem;
+            margin: 0.25rem 0.5rem;
+            transition: all 0.2s ease-in-out;
+        }
+        
+        #reportList li a:hover, #reportList li a.active {
+            background-color: #3498db;
+            color: #fff;
+            transform: translateX(5px);
+        }
+        
+        #reportContainer { 
+            padding: 2rem; 
+            min-height: calc(100vh - 56px);
+        }
+        
+        #reportContent table { 
+            width: 100%; 
+            margin-top: 1rem; 
+        }
+        
+        #paginationControls { 
+            margin-top: 1.5rem; 
+        }
+        
+        .hidden-row { 
+            display: none; 
+        }
+        
+        #tableSearchInput { 
+            margin-bottom: 1rem; 
+        }
+        
+        .bi {
+            vertical-align: -.125em;
+            fill: currentColor;
+        }
+        
+        /* Dashboard Styles */
+        .stat-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 10px;
+            padding: 1.5rem;
+            color: white;
+            margin-bottom: 1.5rem;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+            transition: transform 0.2s;
+        }
+        
+        .stat-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.4);
+        }
+        
+        .stat-card.success {
+            background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+        }
+        
+        .stat-card.warning {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+        }
+        
+        .stat-card.info {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+        }
+        
+        .stat-card.danger {
+            background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);
+        }
+        
+        .stat-value {
+            font-size: 2.5rem;
+            font-weight: bold;
+            margin: 0.5rem 0;
+        }
+        
+        .stat-label {
+            font-size: 0.9rem;
+            opacity: 0.9;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        
+        .dashboard-section {
+            background-color: #2c3e50;
+            border-radius: 10px;
+            padding: 1.5rem;
+            margin-bottom: 2rem;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+        }
+        
+        .dashboard-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.5rem;
+            padding-bottom: 1rem;
+            border-bottom: 2px solid #34495e;
+        }
+        
+        .export-btn {
+            margin-left: 0.5rem;
+        }
+        
+        .table-container {
+            max-height: 600px;
+            overflow-y: auto;
+        }
+        
+        .report-meta {
+            background-color: #34495e;
+            padding: 1rem;
+            border-radius: 5px;
+            margin-bottom: 1rem;
+            display: flex;
+            gap: 2rem;
+            flex-wrap: wrap;
+        }
+        
+        .meta-item {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .loading-spinner {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(255,255,255,.3);
+            border-radius: 50%;
+            border-top-color: #fff;
+            animation: spin 1s ease-in-out infinite;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        
+        .empty-state {
+            text-align: center;
+            padding: 3rem;
+            color: #7f8c8d;
+        }
+        
+        .empty-state i {
+            font-size: 4rem;
+            margin-bottom: 1rem;
+            opacity: 0.5;
+        }
+        
+        /* Enhanced Features Styles */
+        .sortable th {
+            cursor: pointer;
+            user-select: none;
+            position: relative;
+        }
+        
+        .sortable th:hover {
+            background-color: #495057;
+        }
+        
+        .sortable th::after {
+            content: ' ↕';
+            opacity: 0.5;
+            font-size: 0.8em;
+        }
+        
+        .sortable th.sort-asc::after {
+            content: ' ↑';
+            opacity: 1;
+        }
+        
+        .sortable th.sort-desc::after {
+            content: ' ↓';
+            opacity: 1;
+        }
+        
+        .copy-btn {
+            cursor: pointer;
+            margin-left: 0.5rem;
+            opacity: 0.7;
+        }
+        
+        .copy-btn:hover {
+            opacity: 1;
+        }
+        
+        .annotation-panel {
+            background-color: #34495e;
+            padding: 1rem;
+            border-radius: 5px;
+            margin-top: 1rem;
+        }
+        
+        .compare-view {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+        }
+        
+        .chart-container {
+            background-color: #2c3e50;
+            padding: 1.5rem;
+            border-radius: 10px;
+            margin-bottom: 2rem;
+        }
+        
+        .alert-item {
+            padding: 0.75rem;
+            margin-bottom: 0.5rem;
+            border-radius: 5px;
+            border-left: 4px solid;
+        }
+        
+        .alert-item.high {
+            background-color: rgba(220, 53, 69, 0.2);
+            border-color: #dc3545;
+        }
+        
+        .alert-item.medium {
+            background-color: rgba(255, 193, 7, 0.2);
+            border-color: #ffc107;
+        }
+        
+        .alert-item.low {
+            background-color: rgba(40, 167, 69, 0.2);
+            border-color: #28a745;
+        }
+        
+        .light-theme {
+            background-color: #f8f9fa !important;
+            color: #212529 !important;
+        }
+        
+        .light-theme .stat-card {
+            color: white;
+        }
+        
+        .light-theme .dashboard-section {
+            background-color: #ffffff;
+            border: 1px solid #dee2e6;
+        }
+        
+        .export-dropdown {
+            position: relative;
+            display: inline-block;
+        }
+        
+        .export-menu {
+            display: none;
+            position: absolute;
+            right: 0;
+            background-color: #2c3e50;
+            min-width: 160px;
+            box-shadow: 0px 8px 16px 0px rgba(0,0,0,0.2);
+            z-index: 1;
+            border-radius: 5px;
+            padding: 0.5rem 0;
+        }
+        
+        .export-menu.show {
+            display: block;
+        }
+        
+        .export-menu a {
+            color: #ecf0f1;
+            padding: 0.5rem 1rem;
+            text-decoration: none;
+            display: block;
+        }
+        
+        .export-menu a:hover {
+            background-color: #34495e;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Navbar -->
+    <nav class="navbar navbar-expand-lg navbar-dark bg-primary fixed-top">
+      <div class="container-fluid">
+        <a class="navbar-brand" href="#">
+            <i class="bi bi-shield-shaded"></i> ForensiQ (Windows) - Report Viewer
+        </a>
+        <div class="d-flex">
+            <button class="btn btn-outline-light btn-sm" onclick="showDashboard()">
+                <i class="bi bi-speedometer2"></i> Dashboard
+            </button>
+            <button class="btn btn-outline-light btn-sm ms-2" onclick="refreshReports()">
+                <i class="bi bi-arrow-clockwise"></i> Refresh
+            </button>
+            <button class="btn btn-outline-light btn-sm ms-2" onclick="toggleTheme()" id="themeToggle">
+                <i class="bi bi-moon-stars"></i> Theme
+            </button>
+            <button class="btn btn-outline-light btn-sm ms-2" onclick="showCompareView()">
+                <i class="bi bi-arrow-left-right"></i> Compare
+            </button>
+            <button class="btn btn-outline-light btn-sm ms-2" onclick="showAlerts()" id="alertsBtn">
+                <i class="bi bi-bell"></i> Alerts <span id="alertBadge" class="badge bg-danger" style="display: none;">0</span>
+            </button>
+        </div>
+      </div>
+    </nav>
+
+    <div class="container-fluid">
+        <div class="row">
+            <!-- Sidebar -->
+            <nav id="sidebar" class="col-md-3 col-lg-2 d-md-block bg-dark sidebar collapse">
+                <div class="position-sticky pt-3">
+                    <h5 class="px-3 mb-3">
+                        <i class="bi bi-folder2-open"></i> Available Reports
+                    </h5>
+                    <!-- Search Bar -->
+                    <div class="px-3 mb-3">
+                        <div class="input-group">
+                            <span class="input-group-text"><i class="bi bi-search"></i></span>
+                            <input type="text" id="reportSearch" class="form-control form-control-sm" placeholder="Search reports...">
+                        </div>
+                    </div>
+                    <ul id="reportList" class="nav flex-column">
+                        <li class="nav-item px-3">
+                            <div class="loading-spinner"></div> Loading reports...
+                        </li>
+                    </ul>
+                </div>
+            </nav>
+
+            <!-- Main content -->
+            <main class="col-md-9 ms-sm-auto col-lg-10 px-md-4">
+                <!-- Dashboard View -->
+                <div id="dashboardView" style="display: none;">
+                    <div class="dashboard-header mt-4">
+                        <h2><i class="bi bi-speedometer2"></i> Dashboard Overview</h2>
+                        <div>
+                            <button class="btn btn-primary btn-sm" onclick="exportAllReports()">
+                                <i class="bi bi-download"></i> Export All
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <!-- Statistics Cards -->
+                    <div class="row" id="statsCards">
+                        <div class="col-md-3">
+                            <div class="stat-card info">
+                                <div class="stat-label"><i class="bi bi-file-earmark-text"></i> Total Reports</div>
+                                <div class="stat-value" id="totalReports">0</div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="stat-card success">
+                                <div class="stat-label"><i class="bi bi-check-circle"></i> System Reports</div>
+                                <div class="stat-value" id="systemReports">0</div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="stat-card warning">
+                                <div class="stat-label"><i class="bi bi-shield-exclamation"></i> Security Reports</div>
+                                <div class="stat-value" id="securityReports">0</div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="stat-card danger">
+                                <div class="stat-label"><i class="bi bi-network"></i> Network Reports</div>
+                                <div class="stat-value" id="networkReports">0</div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Charts Section -->
+                    <div class="dashboard-section">
+                        <h5><i class="bi bi-bar-chart"></i> Report Statistics</h5>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <canvas id="categoryChart" width="400" height="200"></canvas>
+                            </div>
+                            <div class="col-md-6">
+                                <canvas id="trendChart" width="400" height="200"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Recent Reports -->
+                    <div class="dashboard-section">
+                        <h5><i class="bi bi-clock-history"></i> Recent Reports</h5>
+                        <div id="recentReports" class="table-responsive">
+                            <table class="table table-dark table-hover">
+                                <thead>
+                                    <tr>
+                                        <th>Report Name</th>
+                                        <th>Category</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="recentReportsBody">
+                                    <tr><td colspan="3" class="text-center">Loading...</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Report View -->
+                <div id="reportView">
+                    <div id="reportContainer">
+                        <div class="dashboard-header mt-4">
+                            <h2 id="reportTitle">Select a report from the sidebar</h2>
+                            <div>
+                                <div class="export-dropdown">
+                                    <button id="exportBtn" class="btn btn-primary btn-sm" onclick="toggleExportMenu()" style="display: none;">
+                                        <i class="bi bi-download"></i> Export <i class="bi bi-chevron-down"></i>
+                                    </button>
+                                    <div id="exportMenu" class="export-menu">
+                                        <a href="#" onclick="exportCurrentReport('html'); return false;"><i class="bi bi-file-earmark-html"></i> HTML</a>
+                                        <a href="#" onclick="exportCurrentReport('csv'); return false;"><i class="bi bi-filetype-csv"></i> CSV</a>
+                                        <a href="#" onclick="exportCurrentReport('json'); return false;"><i class="bi bi-filetype-json"></i> JSON</a>
+                                    </div>
+                                </div>
+                                <button class="btn btn-info btn-sm ms-2" onclick="copyTableToClipboard()" id="copyBtn" style="display: none;">
+                                    <i class="bi bi-clipboard"></i> Copy
+                                </button>
+                                <button class="btn btn-secondary btn-sm ms-2" onclick="showDashboard()">
+                                    <i class="bi bi-arrow-left"></i> Back to Dashboard
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <div id="reportMeta" class="report-meta" style="display: none;">
+                            <div class="meta-item">
+                                <i class="bi bi-calendar"></i>
+                                <span id="reportDate">-</span>
+                            </div>
+                            <div class="meta-item">
+                                <i class="bi bi-file-earmark"></i>
+                                <span id="reportType">-</span>
+                            </div>
+                            <div class="meta-item">
+                                <i class="bi bi-table"></i>
+                                <span id="reportRows">-</span>
+                            </div>
+                            <div class="meta-item">
+                                <button class="btn btn-sm btn-outline-info" onclick="showAnnotationPanel()">
+                                    <i class="bi bi-sticky"></i> Add Note
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <!-- Annotation Panel -->
+                        <div id="annotationPanel" class="annotation-panel" style="display: none;">
+                            <h6><i class="bi bi-sticky"></i> Report Notes</h6>
+                            <textarea id="annotationText" class="form-control mb-2" rows="3" placeholder="Add your notes about this report..."></textarea>
+                            <div class="d-flex gap-2">
+                                <button class="btn btn-sm btn-primary" onclick="saveAnnotation()">Save Note</button>
+                                <button class="btn btn-sm btn-secondary" onclick="hideAnnotationPanel()">Cancel</button>
+                            </div>
+                            <div id="savedAnnotations" class="mt-3"></div>
+                        </div>
+                        
+                        <!-- Table Search Input -->
+                        <input type="text" id="tableSearchInput" class="form-control form-control-sm mb-3" 
+                               placeholder="🔍 Search within this table..." style="display: none;" onkeyup="filterTableRows()">
+                        
+                        <div id="reportContent" class="table-container">
+                            <div class="empty-state">
+                                <i class="bi bi-file-earmark-text"></i>
+                                <h4>No Report Selected</h4>
+                                <p>Select a report from the sidebar to view its contents, or view the dashboard for an overview.</p>
+                            </div>
+                        </div>
+                        
+                        <div id="paginationControls" style="display: none;" class="mt-3 btn-group" role="group">
+                            <button id="prevButton" class="btn btn-outline-secondary" onclick="changePage(-1)">
+                                <i class="bi bi-chevron-left"></i> Previous
+                            </button>
+                            <button id="pageInfo" class="btn btn-outline-secondary disabled" style="pointer-events: none;">Page 1</button>
+                            <button id="nextButton" class="btn btn-outline-secondary" onclick="changePage(1)">
+                                Next <i class="bi bi-chevron-right"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <script>
+        let currentPage = 1;
+        const rowsPerPage = 50; // Increased from 20
+        let currentTableRows = [];
+        let filteredTableRows = [];
+        let totalPages = 1;
+        let activeLink = null;
+        let allReports = [];
+        let currentReportData = null;
+
+        // --- Dashboard Functions ---
+        function showDashboard() {
+            document.getElementById('dashboardView').style.display = 'block';
+            document.getElementById('reportView').style.display = 'none';
+            updateDashboard();
+        }
+
+        function showReportView() {
+            document.getElementById('dashboardView').style.display = 'none';
+            document.getElementById('reportView').style.display = 'block';
+        }
+
+        function updateDashboard() {
+            const total = allReports.length;
+            const system = allReports.filter(r => 
+                r.name.toLowerCase().includes('system') || 
+                r.name.toLowerCase().includes('os') ||
+                r.name.toLowerCase().includes('computer')
+            ).length;
+            const security = allReports.filter(r => 
+                r.name.toLowerCase().includes('defender') || 
+                r.name.toLowerCase().includes('firewall') ||
+                r.name.toLowerCase().includes('administrator') ||
+                r.name.toLowerCase().includes('password')
+            ).length;
+            const network = allReports.filter(r => 
+                r.name.toLowerCase().includes('network') || 
+                r.name.toLowerCase().includes('ip') ||
+                r.name.toLowerCase().includes('tcp') ||
+                r.name.toLowerCase().includes('dns') ||
+                r.name.toLowerCase().includes('wifi')
+            ).length;
+
+            document.getElementById('totalReports').textContent = total;
+            document.getElementById('systemReports').textContent = system;
+            document.getElementById('securityReports').textContent = security;
+            document.getElementById('networkReports').textContent = network;
+            
+            // Update charts
+            updateCharts(system, security, network, total - system - security - network);
+
+            // Update recent reports
+            const recentBody = document.getElementById('recentReportsBody');
+            recentBody.innerHTML = '';
+            const recent = allReports.slice(0, 10);
+            recent.forEach(report => {
+                const row = document.createElement('tr');
+                const category = getReportCategory(report.name);
+                row.innerHTML = `
+                    <td><i class="bi bi-file-earmark-text"></i> ${report.name}</td>
+                    <td><span class="badge bg-secondary">${category}</span></td>
+                    <td>
+                        <button class="btn btn-sm btn-primary" onclick="loadReportFromDashboard('${report.path}')">
+                            <i class="bi bi-eye"></i> View
+                        </button>
+                    </td>
+                `;
+                recentBody.appendChild(row);
+            });
+        }
+
+        function getReportCategory(name) {
+            const lower = name.toLowerCase();
+            if (lower.includes('network') || lower.includes('ip') || lower.includes('tcp') || lower.includes('dns') || lower.includes('wifi')) {
+                return 'Network';
+            } else if (lower.includes('defender') || lower.includes('firewall') || lower.includes('administrator') || lower.includes('password')) {
+                return 'Security';
+            } else if (lower.includes('system') || lower.includes('os') || lower.includes('computer')) {
+                return 'System';
+            } else if (lower.includes('usb') || lower.includes('device')) {
+                return 'Hardware';
+            } else {
+                return 'Other';
+            }
+        }
+
+        function loadReportFromDashboard(path) {
+            showReportView();
+            const link = Array.from(document.querySelectorAll('#reportList a')).find(a => a.getAttribute('data-path') === path);
+            if (link) {
+                link.click();
+            }
+        }
+
+        function refreshReports() {
+            populateReportList();
+        }
+
+        // --- Export Functions ---
+        function exportAllReports() {
+            const format = prompt('Export format:\n1. ZIP (all reports)\n2. JSON (manifest)\nEnter 1 or 2:', '1');
+            if (!format) return;
+            
+            if (format === '1') {
+                // Export as ZIP would require server-side processing
+                alert('ZIP export: Use the "Export All" button in the main GUI to export all reports as ZIP.');
+            } else if (format === '2') {
+                exportManifestToJSON();
+            }
+        }
+        
+        function exportManifestToJSON() {
+            const data = {
+                timestamp: new Date().toISOString(),
+                reports: allReports,
+                total: allReports.length
+            };
+            const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `ForensiQ_Reports_${new Date().toISOString().split('T')[0]}.json`;
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+
+        function exportCurrentReport(format = 'html') {
+            if (!currentReportData) {
+                alert('No report loaded to export.');
+                return;
+            }
+            
+            const reportTitle = document.getElementById('reportTitle').textContent;
+            
+            if (format === 'html') {
+                const blob = new Blob([currentReportData], { type: 'text/html' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = reportTitle.replace(/[^a-z0-9]/gi, '_') + '.html';
+                a.click();
+                URL.revokeObjectURL(url);
+            } else if (format === 'csv') {
+                exportTableToCSV();
+            } else if (format === 'json') {
+                exportTableToJSON();
+            }
+        }
+        
+        function exportTableToCSV() {
+            const table = document.querySelector('#reportContent table');
+            if (!table) {
+                alert('No table found to export.');
+                return;
+            }
+            
+            let csv = [];
+            const rows = table.querySelectorAll('tr');
+            
+            for (let row of rows) {
+                const cols = row.querySelectorAll('th, td');
+                const rowData = Array.from(cols).map(col => {
+                    let text = col.textContent.trim();
+                    text = text.replace(/"/g, '""');
+                    return `"${text}"`;
+                });
+                csv.push(rowData.join(','));
+            }
+            
+            const csvContent = csv.join('\n');
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = document.getElementById('reportTitle').textContent.replace(/[^a-z0-9]/gi, '_') + '.csv';
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+        
+        function exportTableToJSON() {
+            const table = document.querySelector('#reportContent table');
+            if (!table) {
+                alert('No table found to export.');
+                return;
+            }
+            
+            const headers = Array.from(table.querySelectorAll('th')).map(th => th.textContent.trim());
+            const rows = table.querySelectorAll('tbody tr');
+            const data = Array.from(rows).map(row => {
+                const cells = Array.from(row.querySelectorAll('td'));
+                const obj = {};
+                headers.forEach((header, i) => {
+                    obj[header] = cells[i] ? cells[i].textContent.trim() : '';
+                });
+                return obj;
+            });
+            
+            const jsonContent = JSON.stringify(data, null, 2);
+            const blob = new Blob([jsonContent], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = document.getElementById('reportTitle').textContent.replace(/[^a-z0-9]/gi, '_') + '.json';
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+        
+        // --- Copy to Clipboard ---
+        function copyTableToClipboard() {
+            const table = document.querySelector('#reportContent table');
+            if (!table) {
+                alert('No table found to copy.');
+                return;
+            }
+            
+            let text = '';
+            const rows = table.querySelectorAll('tr');
+            
+            for (let row of rows) {
+                const cols = row.querySelectorAll('th, td');
+                const rowData = Array.from(cols).map(col => col.textContent.trim());
+                text += rowData.join('\t') + '\n';
+            }
+            
+            navigator.clipboard.writeText(text).then(() => {
+                alert('Table copied to clipboard!');
+            }).catch(err => {
+                alert('Failed to copy: ' + err);
+            });
+        }
+        
+        // --- Column Sorting ---
+        let sortColumn = null;
+        let sortDirection = 'asc';
+        
+        function sortTable(columnIndex) {
+            const table = document.querySelector('#reportContent table');
+            if (!table) return;
+            
+            const tbody = table.querySelector('tbody');
+            if (!tbody) return;
+            
+            const rows = Array.from(tbody.querySelectorAll('tr'));
+            const headers = table.querySelectorAll('th');
+            
+            // Update sort indicators
+            headers.forEach((th, idx) => {
+                th.classList.remove('sort-asc', 'sort-desc');
+                if (idx === columnIndex) {
+                    th.classList.add(sortDirection === 'asc' ? 'sort-asc' : 'sort-desc');
+                }
+            });
+            
+            // Toggle direction if same column
+            if (sortColumn === columnIndex) {
+                sortDirection = sortDirection === 'asc' ? 'desc' : 'asc';
+            } else {
+                sortColumn = columnIndex;
+                sortDirection = 'asc';
+            }
+            
+            // Sort rows
+            rows.sort((a, b) => {
+                const aText = a.cells[columnIndex] ? a.cells[columnIndex].textContent.trim() : '';
+                const bText = b.cells[columnIndex] ? b.cells[columnIndex].textContent.trim() : '';
+                
+                // Try numeric comparison
+                const aNum = parseFloat(aText);
+                const bNum = parseFloat(bText);
+                
+                if (!isNaN(aNum) && !isNaN(bNum)) {
+                    return sortDirection === 'asc' ? aNum - bNum : bNum - aNum;
+                }
+                
+                // String comparison
+                return sortDirection === 'asc' 
+                    ? aText.localeCompare(bText)
+                    : bText.localeCompare(aText);
+            });
+            
+            // Reorder rows
+            rows.forEach(row => tbody.appendChild(row));
+            
+            // Refresh pagination
+            currentTableRows = rows;
+            filteredTableRows = rows;
+            displayPage(currentPage);
+        }
+        
+        // --- Theme Toggle ---
+        let isDarkTheme = true;
+        
+        function toggleTheme() {
+            isDarkTheme = !isDarkTheme;
+            const body = document.body;
+            const themeToggle = document.getElementById('themeToggle');
+            
+            if (isDarkTheme) {
+                body.classList.remove('light-theme');
+                themeToggle.innerHTML = '<i class="bi bi-moon-stars"></i> Theme';
+            } else {
+                body.classList.add('light-theme');
+                themeToggle.innerHTML = '<i class="bi bi-sun"></i> Theme';
+            }
+            
+            // Save preference
+            localStorage.setItem('forensiq_theme', isDarkTheme ? 'dark' : 'light');
+        }
+        
+        // --- Report Comparison ---
+        let compareReports = [];
+        
+        function showCompareView() {
+            const modal = document.createElement('div');
+            modal.className = 'modal fade';
+            modal.innerHTML = `
+                <div class="modal-dialog modal-lg">
+                    <div class="modal-content bg-dark">
+                        <div class="modal-header">
+                            <h5 class="modal-title">Compare Reports</h5>
+                            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                        </div>
+                        <div class="modal-body">
+                            <p>Select two reports to compare:</p>
+                            <select id="compareReport1" class="form-select mb-3">
+                                <option value="">Select first report...</option>
+                            </select>
+                            <select id="compareReport2" class="form-select mb-3">
+                                <option value="">Select second report...</option>
+                            </select>
+                            <button class="btn btn-primary" onclick="performComparison()">Compare</button>
+                            <div id="compareResults" class="mt-3"></div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(modal);
+            const bsModal = new bootstrap.Modal(modal);
+            bsModal.show();
+            
+            // Populate selects
+            const select1 = document.getElementById('compareReport1');
+            const select2 = document.getElementById('compareReport2');
+            allReports.forEach(report => {
+                const opt1 = document.createElement('option');
+                opt1.value = report.path;
+                opt1.textContent = report.name;
+                select1.appendChild(opt1.cloneNode(true));
+                select2.appendChild(opt1);
+            });
+            
+            modal.addEventListener('hidden.bs.modal', () => modal.remove());
+        }
+        
+        async function performComparison() {
+            const report1Path = document.getElementById('compareReport1').value;
+            const report2Path = document.getElementById('compareReport2').value;
+            
+            if (!report1Path || !report2Path) {
+                alert('Please select both reports to compare.');
+                return;
+            }
+            
+            try {
+                const [res1, res2] = await Promise.all([
+                    fetch(report1Path),
+                    fetch(report2Path)
+                ]);
+                
+                const [html1, html2] = await Promise.all([
+                    res1.text(),
+                    res2.text()
+                ]);
+                
+                const parser = new DOMParser();
+                const doc1 = parser.parseFromString(html1, 'text/html');
+                const doc2 = parser.parseFromString(html2, 'text/html');
+                
+                const table1 = doc1.querySelector('table');
+                const table2 = doc2.querySelector('table');
+                
+                if (!table1 || !table2) {
+                    alert('Both reports must contain tables to compare.');
+                    return;
+                }
+                
+                // Simple comparison - show differences
+                const resultsDiv = document.getElementById('compareResults');
+                resultsDiv.innerHTML = `
+                    <h6>Comparison Results</h6>
+                    <p>Report 1 rows: ${table1.querySelectorAll('tbody tr').length}</p>
+                    <p>Report 2 rows: ${table2.querySelectorAll('tbody tr').length}</p>
+                    <p class="text-info">Detailed comparison would show row-by-row differences.</p>
+                `;
+            } catch (error) {
+                alert('Error comparing reports: ' + error.message);
+            }
+        }
+        
+        // --- Alerts System ---
+        async function showAlerts() {
+            try {
+                const response = await fetch('alerts.json');
+                if (!response.ok) {
+                    alert('No alerts file found or alerts system not initialized.');
+                    return;
+                }
+                
+                const alerts = await response.json();
+                const unacknowledged = alerts.filter(a => !a.acknowledged);
+                
+                if (unacknowledged.length === 0) {
+                    alert('No unacknowledged alerts.');
+                    return;
+                }
+                
+                const modal = document.createElement('div');
+                modal.className = 'modal fade';
+                modal.innerHTML = `
+                    <div class="modal-dialog modal-lg">
+                        <div class="modal-content bg-dark">
+                            <div class="modal-header">
+                                <h5 class="modal-title">Security Alerts (${unacknowledged.length})</h5>
+                                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                            </div>
+                            <div class="modal-body">
+                                <div id="alertsList"></div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                document.body.appendChild(modal);
+                
+                const alertsList = document.getElementById('alertsList');
+                unacknowledged.forEach(alert => {
+                    const alertDiv = document.createElement('div');
+                    alertDiv.className = `alert-item ${alert.severity}`;
+                    alertDiv.innerHTML = `
+                        <strong>${alert.title}</strong>
+                        <p>${alert.message}</p>
+                        <small>Report: ${alert.report} | ${new Date(alert.timestamp).toLocaleString()}</small>
+                    `;
+                    alertsList.appendChild(alertDiv);
+                });
+                
+                const bsModal = new bootstrap.Modal(modal);
+                bsModal.show();
+                modal.addEventListener('hidden.bs.modal', () => modal.remove());
+                
+                // Update badge
+                document.getElementById('alertBadge').textContent = unacknowledged.length;
+                document.getElementById('alertBadge').style.display = 'inline';
+            } catch (error) {
+                console.error('Error loading alerts:', error);
+                alert('Could not load alerts. They may not be available yet.');
+            }
+        }
+        
+        // --- Global Search ---
+        function performGlobalSearch() {
+            const searchTerm = prompt('Enter search term to find across all reports:');
+            if (!searchTerm) return;
+            
+            alert(`Global search for "${searchTerm}" would search across all reports.\nThis feature requires server-side processing.`);
+        }
+
+        // --- Helper Functions ---
+        function setActiveLink(linkElement) {
+            if (activeLink) {
+                activeLink.classList.remove('active');
+            }
+            if (linkElement) {
+                linkElement.classList.add('active');
+                activeLink = linkElement;
+            } else {
+                activeLink = null;
+            }
+        }
+
+        function resetContentArea(titleText = 'Loading...') {
+            const reportContentDiv = document.getElementById('reportContent');
+            const paginationControls = document.getElementById('paginationControls');
+            const reportTitle = document.getElementById('reportTitle');
+            const tableSearchInput = document.getElementById('tableSearchInput');
+            const reportMeta = document.getElementById('reportMeta');
+            const exportBtn = document.getElementById('exportBtn');
+
+            reportTitle.textContent = titleText;
+            reportContentDiv.innerHTML = '<div class="loading-spinner"></div> Loading...';
+            paginationControls.style.display = 'none';
+            tableSearchInput.style.display = 'none';
+            tableSearchInput.value = '';
+            reportMeta.style.display = 'none';
+            exportBtn.style.display = 'none';
+            currentTableRows = [];
+            filteredTableRows = [];
+            currentPage = 1;
+            totalPages = 1;
+        }
+
+        // --- Load HTML Report Function ---
+        async function loadHtmlReport(reportPath, linkElement) {
+            setActiveLink(linkElement);
+            showReportView();
+            const reportName = linkElement ? linkElement.textContent.trim().replace(/^[^\w]*/, '') : 'Report';
+            resetContentArea(`Loading ${reportName}...`);
+
+            const reportContentDiv = document.getElementById('reportContent');
+            const reportTitle = document.getElementById('reportTitle');
+            const tableSearchInput = document.getElementById('tableSearchInput');
+            const reportMeta = document.getElementById('reportMeta');
+            const exportBtn = document.getElementById('exportBtn');
+
+            try {
+                const response = await fetch(reportPath);
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                const htmlText = await response.text();
+                currentReportData = htmlText;
+                const parser = new DOMParser();
+                const reportDoc = parser.parseFromString(htmlText, 'text/html');
+                const table = reportDoc.querySelector('table');
+
+                reportTitle.textContent = reportName;
+                exportBtn.style.display = 'inline-block';
+                
+                // Load annotation if exists
+                const saved = localStorage.getItem('forensiq_annotations');
+                if (saved) {
+                    const annotations = JSON.parse(saved);
+                    if (annotations[reportName]) {
+                        document.getElementById('annotationText').value = annotations[reportName];
+                    }
+                }
+
+                // Update metadata
+                const metaDate = document.getElementById('reportDate');
+                const metaType = document.getElementById('reportType');
+                const metaRows = document.getElementById('reportRows');
+                
+                metaDate.textContent = new Date().toLocaleString();
+                metaType.textContent = getReportCategory(reportName);
+                reportMeta.style.display = 'flex';
+
+                if (table) {
+                    table.classList.add('table', 'table-striped', 'table-bordered', 'table-hover', 'table-dark', 'sortable');
+                    const clonedTable = table.cloneNode(true);
+                    reportContentDiv.innerHTML = '';
+                    reportContentDiv.appendChild(clonedTable);
+                    
+                    // Add sorting to headers
+                    const headers = clonedTable.querySelectorAll('thead th');
+                    headers.forEach((th, index) => {
+                        th.style.cursor = 'pointer';
+                        th.onclick = () => sortTable(index);
+                        th.title = 'Click to sort';
+                    });
+                    
+                    // Show copy button
+                    document.getElementById('copyBtn').style.display = 'inline-block';
+
+                    const tableBody = clonedTable.querySelector('tbody');
+                    if (tableBody) {
+                        currentTableRows = Array.from(tableBody.querySelectorAll('tr'));
+                        filteredTableRows = currentTableRows;
+                        const rowCount = currentTableRows.length;
+                        metaRows.textContent = `${rowCount} rows`;
+                        tableSearchInput.style.display = 'block';
+                        currentPage = 1;
+                        displayPage(currentPage);
+                    } else {
+                        reportContentDiv.innerHTML = '<p class="text-warning">Report loaded, but no table body found.</p>';
+                        metaRows.textContent = '0 rows';
+                    }
+                } else {
+                    const bodyContent = reportDoc.body.innerHTML;
+                    reportContentDiv.innerHTML = bodyContent || '<p class="text-warning">Report loaded, but no table found.</p>';
+                    metaRows.textContent = 'N/A';
+                }
+            } catch (error) {
+                console.error('Error loading HTML report:', error);
+                reportTitle.textContent = `Error Loading ${reportName}`;
+                reportContentDiv.innerHTML = `<div class="alert alert-danger">Error loading report: ${error.message}. Ensure the file exists at '${reportPath}' and CORS is configured correctly.</div>`;
+            }
+        }
+
+        // --- Load Passwords CSV Function ---
+        async function loadPasswordsCsv(linkElement) {
+            setActiveLink(linkElement);
+            showReportView();
+            const reportName = "Passwords";
+            resetContentArea(`Loading ${reportName}...`);
+
+            const csvPath = 'output/credentials_output.csv';
+            const reportContentDiv = document.getElementById('reportContent');
+            const reportTitle = document.getElementById('reportTitle');
+            const tableSearchInput = document.getElementById('tableSearchInput');
+            const reportMeta = document.getElementById('reportMeta');
+            const exportBtn = document.getElementById('exportBtn');
+
+            try {
+                const response = await fetch(csvPath);
+                if (!response.ok) {
+                    if (response.status === 0 || response.type === 'opaque') {
+                        throw new Error(`Could not fetch '${csvPath}'. This might be due to browser security restrictions (CORS).`);
+                    } else {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+                }
+                const csvText = await response.text();
+
+                const lines = csvText.trim().split('\n');
+                if (lines.length === 0) {
+                    reportContentDiv.innerHTML = '<div class="alert alert-warning">CSV file is empty.</div>';
+                    reportTitle.textContent = reportName;
+                    return;
+                }
+
+                const headers = lines[0].split(',').map(h => h.trim());
+                const data = lines.slice(1).map(line => line.split(',').map(cell => cell.trim()));
+
+                const table = document.createElement('table');
+                table.classList.add('table', 'table-striped', 'table-bordered', 'table-hover', 'table-dark');
+                const thead = table.createTHead();
+                const tbody = table.createTBody();
+                const headerRow = thead.insertRow();
+                headers.forEach(headerText => {
+                    const th = document.createElement('th');
+                    th.textContent = headerText;
+                    headerRow.appendChild(th);
+                });
+
+                data.forEach(rowData => {
+                    const row = tbody.insertRow();
+                    rowData.forEach(cellData => {
+                        const cell = row.insertCell();
+                        cell.textContent = cellData;
+                    });
+                });
+
+                reportContentDiv.innerHTML = '';
+                reportContentDiv.appendChild(table);
+                reportTitle.textContent = reportName;
+                exportBtn.style.display = 'inline-block';
+
+                // Update metadata
+                document.getElementById('reportDate').textContent = new Date().toLocaleString();
+                document.getElementById('reportType').textContent = 'Security';
+                document.getElementById('reportRows').textContent = `${data.length} rows`;
+                reportMeta.style.display = 'flex';
+
+                currentTableRows = Array.from(tbody.querySelectorAll('tr'));
+                filteredTableRows = currentTableRows;
+                tableSearchInput.style.display = 'block';
+                currentPage = 1;
+                displayPage(currentPage);
+
+            } catch (error) {
+                console.error('Error loading/parsing CSV:', error);
+                reportTitle.textContent = `Error Loading ${reportName}`;
+                reportContentDiv.innerHTML = `<div class="alert alert-danger">Error loading passwords: ${error.message}.</div>`;
+            }
+        }
+
+        // --- Filter Table Rows ---
+        function filterTableRows() {
+            const searchTerm = document.getElementById('tableSearchInput').value.toLowerCase();
+            filteredTableRows = currentTableRows.filter(row => {
+                const cells = row.querySelectorAll('td');
+                if (cells.length === 0) return false;
+                for (let cell of cells) {
+                    if (cell.textContent.toLowerCase().includes(searchTerm)) {
+                        return true;
+                    }
+                }
+                return false;
+            });
+            currentPage = 1;
+            displayPage(currentPage);
+        }
+
+        // --- Display Page ---
+        function displayPage(page) {
+            const tableBody = document.querySelector('#reportContent table tbody');
+            const paginationControls = document.getElementById('paginationControls');
+            const pageInfo = document.getElementById('pageInfo');
+            const prevButton = document.getElementById('prevButton');
+            const nextButton = document.getElementById('nextButton');
+
+            if (!tableBody || currentTableRows.length === 0) {
+                paginationControls.style.display = 'none';
+                if (tableBody && filteredTableRows.length === 0 && document.getElementById('tableSearchInput').value) {
+                    let noResultsRow = tableBody.querySelector('.no-results-row');
+                    if (!noResultsRow) {
+                        noResultsRow = tableBody.insertRow();
+                        noResultsRow.classList.add('no-results-row');
+                        const cell = noResultsRow.insertCell();
+                        const headerCells = document.querySelector('#reportContent table thead th');
+                        cell.colSpan = headerCells ? headerCells.length : 1;
+                        cell.textContent = 'No matching records found.';
+                        cell.style.textAlign = 'center';
+                        cell.classList.add('text-warning');
+                    }
+                } else if (tableBody) {
+                    const noResultsRow = tableBody.querySelector('.no-results-row');
+                    if (noResultsRow) noResultsRow.remove();
+                }
+                pageInfo.textContent = 'Page 0 of 0';
+                prevButton.disabled = true;
+                nextButton.disabled = true;
+                return;
+            } else {
+                const noResultsRow = tableBody.querySelector('.no-results-row');
+                if (noResultsRow) noResultsRow.remove();
+            }
+
+            totalPages = Math.ceil(filteredTableRows.length / rowsPerPage);
+
+            currentTableRows.forEach(row => row.style.display = 'none');
+
+            if (filteredTableRows.length === 0) {
+                paginationControls.style.display = 'none';
+                pageInfo.textContent = 'Page 0 of 0';
+                prevButton.disabled = true;
+                nextButton.disabled = true;
+                if (document.getElementById('tableSearchInput').value) {
+                    let noResultsRow = tableBody.querySelector('.no-results-row');
+                    if (!noResultsRow) {
+                        noResultsRow = tableBody.insertRow();
+                        noResultsRow.classList.add('no-results-row');
+                        const cell = noResultsRow.insertCell();
+                        const headerCells = document.querySelectorAll('#reportContent table thead th');
+                        cell.colSpan = headerCells ? headerCells.length : 1;
+                        cell.textContent = 'No matching records found.';
+                        cell.style.textAlign = 'center';
+                        cell.classList.add('text-warning');
+                    }
+                }
+                return;
+            }
+
+            const startIndex = (page - 1) * rowsPerPage;
+            const endIndex = startIndex + rowsPerPage;
+
+            filteredTableRows.slice(startIndex, endIndex).forEach(row => {
+                row.style.display = '';
+            });
+
+            paginationControls.style.display = totalPages > 1 ? 'flex' : 'none';
+            pageInfo.textContent = `Page ${page} of ${totalPages} (${filteredTableRows.length} total)`;
+            prevButton.disabled = page === 1;
+            nextButton.disabled = page === totalPages;
+        }
+
+        // --- Change Page ---
+        function changePage(direction) {
+            const newPage = currentPage + direction;
+            if (newPage >= 1 && newPage <= totalPages) {
+                currentPage = newPage;
+                displayPage(currentPage);
+            }
+        }
+
+        // --- Populate Sidebar List ---
+        async function populateReportList() {
+            const reportListUl = document.getElementById('reportList');
+            reportListUl.innerHTML = '';
+
+            // Add Static "Passwords" Entry
+            const passwordsLi = document.createElement('li');
+            passwordsLi.classList.add('nav-item');
+            const passwordsA = document.createElement('a');
+            passwordsA.classList.add('nav-link');
+            passwordsA.href = '#';
+            passwordsA.setAttribute('data-path', 'passwords');
+            passwordsA.onclick = (event) => {
+                event.preventDefault();
+                loadPasswordsCsv(passwordsA);
+            };
+            const passwordsIcon = document.createElement('i');
+            passwordsIcon.classList.add('bi', 'bi-key-fill');
+            passwordsA.appendChild(passwordsIcon);
+            passwordsA.appendChild(document.createTextNode(' Passwords'));
+            passwordsLi.appendChild(passwordsA);
+            reportListUl.appendChild(passwordsLi);
+
+            // Load Dynamic Reports from Manifest
+            try {
+                const manifestPath = `output/manifest.json?t=${Date.now()}`;
+                const response = await fetch(manifestPath);
+                if (!response.ok) {
+                    // Check if we're using file:// protocol
+                    if (window.location.protocol === 'file:') {
+                        throw new Error('CORS_ERROR: Please use a local web server. See instructions below.');
+                    }
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                const reports = await response.json();
+                allReports = reports;
+
+                if (reports.length === 0 && reportListUl.children.length === 1) {
+                    reportListUl.innerHTML = '<li class="px-3 text-warning">No reports found. Run the toolkit to generate reports.</li>';
+                    return;
+                }
+
+                reports.forEach(report => {
+                    const li = document.createElement('li');
+                    li.classList.add('nav-item');
+                    const a = document.createElement('a');
+                    a.classList.add('nav-link');
+                    a.href = '#';
+                    const reportPath = report.path.replace(/\\/g, '/');
+                    a.setAttribute('data-path', reportPath);
+                    a.onclick = (event) => {
+                        event.preventDefault();
+                        loadHtmlReport(reportPath, a);
+                    };
+                    const icon = document.createElement('i');
+                    icon.classList.add('bi', 'bi-file-earmark-text');
+                    a.appendChild(icon);
+                    a.appendChild(document.createTextNode(' ' + report.name));
+                    li.appendChild(a);
+                    reportListUl.appendChild(li);
+                });
+
+                updateDashboard();
+
+            } catch (error) {
+                console.error('Error loading manifest:', error);
+                const errorLi = document.createElement('li');
+                errorLi.classList.add('px-3', 'text-danger');
+                
+                if (error.message.includes('CORS_ERROR')) {
+                    errorLi.innerHTML = `
+                        <div class="alert alert-warning">
+                            <strong>CORS Error:</strong> Browser security restrictions prevent loading local files.<br>
+                            <strong>Solution:</strong> Use a local web server:<br>
+                            <code>python -m http.server 8000</code><br>
+                            Then open: <code>http://localhost:8000/index.html</code>
+                        </div>
+                    `;
+                } else {
+                    errorLi.textContent = `Error loading manifest: ${error.message}.`;
+                }
+                reportListUl.appendChild(errorLi);
+            }
+        }
+
+        // --- Filter Sidebar List ---
+        function filterReportList() {
+            const searchTerm = document.getElementById('reportSearch').value.toLowerCase();
+            const reportList = document.getElementById('reportList');
+            const items = reportList.getElementsByTagName('li');
+
+            for (let i = 0; i < items.length; i++) {
+                if (items[i].classList.contains('text-danger') || items[i].classList.contains('text-warning')) {
+                    items[i].style.display = "";
+                    continue;
+                }
+                const link = items[i].getElementsByTagName('a')[0];
+                if (link) {
+                    const text = link.textContent || link.innerText;
+                    if (text.toLowerCase().indexOf(searchTerm) > -1) {
+                        items[i].style.display = "";
+                    } else {
+                        items[i].style.display = "none";
+                    }
+                } else {
+                    if (!items[i].textContent.toLowerCase().includes('loading') && !items[i].textContent.toLowerCase().includes('no reports')) {
+                        if (items[i].textContent.toLowerCase().indexOf(searchTerm) > -1) {
+                            items[i].style.display = "";
+                        } else {
+                            items[i].style.display = "none";
+                        }
+                    }
+                }
+            }
+        }
+
+        // --- Export Menu Toggle ---
+        function toggleExportMenu() {
+            const menu = document.getElementById('exportMenu');
+            menu.classList.toggle('show');
+        }
+        
+        // Close export menu when clicking outside
+        window.onclick = function(event) {
+            const exportBtn = document.getElementById('exportBtn');
+            const exportMenu = document.getElementById('exportMenu');
+            if (exportBtn && exportMenu && !exportBtn.contains(event.target) && !exportMenu.contains(event.target)) {
+                exportMenu.classList.remove('show');
+            }
+        }
+        
+        // --- Initial Load ---
+        window.onload = () => {
+            // Load theme preference
+            const savedTheme = localStorage.getItem('forensiq_theme');
+            if (savedTheme === 'light') {
+                toggleTheme();
+            }
+            
+            populateReportList();
+            const searchInput = document.getElementById('reportSearch');
+            if (searchInput) {
+                searchInput.addEventListener('keyup', filterReportList);
+            }
+            showDashboard(); // Show dashboard by default
+            
+            // Check for alerts
+            checkAlerts();
+        };
+        
+        // --- Check Alerts on Load ---
+        async function checkAlerts() {
+            try {
+                const response = await fetch('alerts.json');
+                if (response.ok) {
+                    const alerts = await response.json();
+                    const unacknowledged = alerts.filter(a => !a.acknowledged);
+                    if (unacknowledged.length > 0) {
+                        const badge = document.getElementById('alertBadge');
+                        badge.textContent = unacknowledged.length;
+                        badge.style.display = 'inline';
+                    }
+                }
+            } catch (error) {
+                // Alerts file doesn't exist yet, that's okay
+            }
+        }
+        
+        // --- Report Annotations ---
+        let reportAnnotations = {};
+        
+        function showAnnotationPanel() {
+            const panel = document.getElementById('annotationPanel');
+            panel.style.display = 'block';
+            
+            // Load existing annotation
+            const reportName = document.getElementById('reportTitle').textContent;
+            if (reportAnnotations[reportName]) {
+                document.getElementById('annotationText').value = reportAnnotations[reportName];
+            }
+            
+            loadSavedAnnotations();
+        }
+        
+        function hideAnnotationPanel() {
+            document.getElementById('annotationPanel').style.display = 'none';
+        }
+        
+        function saveAnnotation() {
+            const reportName = document.getElementById('reportTitle').textContent;
+            const annotation = document.getElementById('annotationText').value;
+            
+            if (!annotation.trim()) {
+                alert('Please enter a note.');
+                return;
+            }
+            
+            reportAnnotations[reportName] = annotation;
+            
+            // Save to localStorage
+            localStorage.setItem('forensiq_annotations', JSON.stringify(reportAnnotations));
+            
+            alert('Note saved!');
+            loadSavedAnnotations();
+        }
+        
+        function loadSavedAnnotations() {
+            const saved = localStorage.getItem('forensiq_annotations');
+            if (saved) {
+                reportAnnotations = JSON.parse(saved);
+            }
+            
+            const reportName = document.getElementById('reportTitle').textContent;
+            const savedDiv = document.getElementById('savedAnnotations');
+            
+            if (reportAnnotations[reportName]) {
+                savedDiv.innerHTML = `
+                    <div class="alert alert-info">
+                        <strong>Saved Note:</strong><br>
+                        ${reportAnnotations[reportName].replace(/\n/g, '<br>')}
+                    </div>
+                `;
+            } else {
+                savedDiv.innerHTML = '';
+            }
+        }
+        
+        // Load annotations on page load
+        window.addEventListener('load', () => {
+            const saved = localStorage.getItem('forensiq_annotations');
+            if (saved) {
+                reportAnnotations = JSON.parse(saved);
+            }
+        });
+        
+        // --- Charts ---
+        let categoryChart = null;
+        let trendChart = null;
+        
+        function updateCharts(system, security, network, other) {
+            // Category Pie Chart
+            const ctx1 = document.getElementById('categoryChart');
+            if (ctx1 && typeof Chart !== 'undefined') {
+                if (categoryChart) categoryChart.destroy();
+                categoryChart = new Chart(ctx1, {
+                    type: 'pie',
+                    data: {
+                        labels: ['System', 'Security', 'Network', 'Other'],
+                        datasets: [{
+                            data: [system, security, network, other],
+                            backgroundColor: [
+                                '#28a745',
+                                '#ffc107',
+                                '#dc3545',
+                                '#6c757d'
+                            ]
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        plugins: {
+                            legend: {
+                                labels: { color: '#ecf0f1' }
+                            }
+                        }
+                    }
+                });
+            }
+            
+            // Trend Chart (placeholder - would show historical data)
+            const ctx2 = document.getElementById('trendChart');
+            if (ctx2 && typeof Chart !== 'undefined') {
+                if (trendChart) trendChart.destroy();
+                trendChart = new Chart(ctx2, {
+                    type: 'bar',
+                    data: {
+                        labels: ['System', 'Security', 'Network', 'Other'],
+                        datasets: [{
+                            label: 'Report Count',
+                            data: [system, security, network, other],
+                            backgroundColor: '#3498db'
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        plugins: {
+                            legend: {
+                                labels: { color: '#ecf0f1' }
+                            }
+                        },
+                        scales: {
+                            y: {
+                                ticks: { color: '#ecf0f1' },
+                                grid: { color: '#34495e' }
+                            },
+                            x: {
+                                ticks: { color: '#ecf0f1' },
+                                grid: { color: '#34495e' }
+                            }
+                        }
+                    }
+                });
+            }
+        }
+
+    </script>
+    <!-- Bootstrap JS Bundle -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

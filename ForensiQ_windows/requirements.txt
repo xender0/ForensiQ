@@ -1,0 +1,7 @@
+ttkbootstrap>=1.10.0
+pywin32>=305
+pycryptodome>=3.19.0
+requests>=2.31.0
+reportlab>=4.0.0
+beautifulsoup4>=4.12.0
+
