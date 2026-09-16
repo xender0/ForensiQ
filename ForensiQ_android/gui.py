@@ -610,6 +610,7 @@ def main():
     root.mainloop()
 
 #this is harmless code
+#this is 2nd line of harmless code
 
 if __name__ == "__main__":
     main()
