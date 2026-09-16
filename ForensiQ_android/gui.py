@@ -609,6 +609,8 @@ def main():
     app = ForensicsGUI(root)
     root.mainloop()
 
+#this is harmless code
+
 if __name__ == "__main__":
     main()
 
